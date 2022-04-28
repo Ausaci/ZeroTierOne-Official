@@ -373,9 +373,9 @@
 #define ZT_QOS_TABLE_SIZE ((ZT_QOS_MAX_PACKET_SIZE * 8) / (64 + 16))
 
 /**
- * Maximum number of outgoing packets we monitor for QoS information
+ * Maximum number of packets we monitor for QoS information at any given time
  */
-#define ZT_QOS_MAX_OUTSTANDING_RECORDS (1024 * 16)
+#define ZT_QOS_MAX_PENDING_RECORDS (ZT_QOS_TABLE_SIZE * 3)
 
 /**
  * Interval used for rate-limiting the computation of path quality estimates.
@@ -530,14 +530,14 @@
 #define ZT_PUSH_DIRECT_PATHS_MAX_PER_SCOPE_AND_FAMILY 8
 
 /**
- * Time horizon for VERB_NETWORK_CREDENTIALS cutoff
+ * Rate limit for network credential pushes from peer.
  */
-#define ZT_PEER_CREDENTIALS_CUTOFF_TIME 60000
+#define ZT_PEER_CREDENTIALS_RATE_LIMIT 1000
 
 /**
- * Maximum number of VERB_NETWORK_CREDENTIALS within cutoff time
+ * Rate limit for responding to peer credential requests
  */
-#define ZT_PEER_CREDENTIALS_CUTOFF_LIMIT 15
+#define ZT_PEER_CREDENTIALS_REQUEST_RATE_LIMIT 1000
 
 /**
  * WHOIS rate limit (we allow these to be pretty fast)
@@ -576,13 +576,13 @@
  * Anything below this value gets into thrashing territory since we divide
  * this value by ZT_BOND_ECHOS_PER_FAILOVER_INTERVAL to send ECHOs often.
  */
-#define ZT_BOND_FAILOVER_MIN_INTERVAL 250
+#define ZT_BOND_FAILOVER_MIN_INTERVAL 500
 
 /**
  * How many times per failover interval that an ECHO is sent. This should be
  * at least 2. Anything more then 4 starts to increase overhead significantly.
  */
-#define ZT_BOND_ECHOS_PER_FAILOVER_INTERVAL 4
+#define ZT_BOND_ECHOS_PER_FAILOVER_INTERVAL 3
 
 /**
  * A defensive timer to prevent path quality metrics from being

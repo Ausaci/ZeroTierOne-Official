@@ -328,9 +328,10 @@ public:
 				_config.ssoNonce
 			);
 
-			const char* url = zeroidc::zeroidc_get_auth_url(_idc);
+			char* url = zeroidc::zeroidc_get_auth_url(_idc);
 			memcpy(_config.authenticationURL, url, strlen(url));
 			_config.authenticationURL[strlen(url)] = 0;
+			zeroidc::free_cstr(url);
 
 			if (zeroidc::zeroidc_is_running(_idc) && nwc->status == ZT_NETWORK_STATUS_AUTHENTICATION_REQUIRED) {
 				// TODO: kick the refresh thread
@@ -362,23 +363,25 @@ public:
 		return "";
 	}
 
-	const char* doTokenExchange(const char *code) {
+	char* doTokenExchange(const char *code) {
 #if ZT_SSO_ENABLED
 		if (_idc == nullptr) {
 			fprintf(stderr, "ainfo or idc null\n");
 			return "";
 		}
 
-		const char *ret = zeroidc::zeroidc_token_exchange(_idc, code);
+		char *ret = zeroidc::zeroidc_token_exchange(_idc, code);
 		zeroidc::zeroidc_set_nonce_and_csrf(
 			_idc,
 			_config.ssoState,
 			_config.ssoNonce
 		);
 
-		const char* url = zeroidc::zeroidc_get_auth_url(_idc);
+		char* url = zeroidc::zeroidc_get_auth_url(_idc);
 		memcpy(_config.authenticationURL, url, strlen(url));
 		_config.authenticationURL[strlen(url)] = 0;
+		zeroidc::free_cstr(url);
+		
 		return ret;
 #else
 		return "";
@@ -549,7 +552,6 @@ static void _peerToJson(nlohmann::json &pj,const ZT_Peer *peer)
 	pj["isBonded"] = peer->isBonded;
 	if (peer->isBonded) {
 		pj["bondingPolicy"] = peer->bondingPolicy;
-		pj["isHealthy"] = peer->isHealthy;
 		pj["numAliveLinks"] = peer->numAliveLinks;
 		pj["numTotalLinks"] = peer->numTotalLinks;
 	}
@@ -581,7 +583,6 @@ static void _bondToJson(nlohmann::json &pj, SharedPtr<Bond> &bond)
 		return;
 	}
 
-	pj["isHealthy"] = bond->isHealthy();
 	pj["numAliveLinks"] = bond->getNumAliveLinks();
 	pj["numTotalLinks"] = bond->getNumTotalLinks();
 	pj["failoverInterval"] = bond->getFailoverInterval();
@@ -1004,27 +1005,16 @@ public:
 				// If we're running uPnP/NAT-PMP, bind a *third* port for that. We can't
 				// use the other two ports for that because some NATs do really funky
 				// stuff with ports that are explicitly mapped that breaks things.
-				if (_ports[1]) {
-					if (_tertiaryPort) {
-						_ports[2] = _tertiaryPort;
-					} else {
-						_ports[2] = 20000 + (_ports[0] % 40000);
-						for(int i=0;;++i) {
-							if (i > 1000) {
-								_ports[2] = 0;
-								break;
-							} else if (++_ports[2] >= 65536) {
-								_ports[2] = 20000;
-							}
-							if (_trialBind(_ports[2]))
-								break;
-						}
-						if (_ports[2]) {
-							char uniqueName[64];
-							OSUtils::ztsnprintf(uniqueName,sizeof(uniqueName),"ZeroTier/%.10llx@%u",_node->address(),_ports[2]);
-							_portMapper = new PortMapper(_ports[2],uniqueName);
-						}
-					}
+				if (_tertiaryPort) {
+					_ports[2] = _tertiaryPort;
+				} else {
+					_ports[2] = _getRandomPort();
+				}
+
+				if (_ports[2]) {
+					char uniqueName[64];
+					OSUtils::ztsnprintf(uniqueName,sizeof(uniqueName),"ZeroTier/%.10llx@%u",_node->address(),_ports[2]);
+					_portMapper = new PortMapper(_ports[2],uniqueName);
 				}
 			}
 #endif
@@ -1723,19 +1713,26 @@ public:
 				} 
 
 				// SSO redirect handling
-				const char* state = zeroidc::zeroidc_get_url_param_value("state", path.c_str());
-				const char* nwid = zeroidc::zeroidc_network_id_from_state(state);
+				char* state = zeroidc::zeroidc_get_url_param_value("state", path.c_str());
+				char* nwid = zeroidc::zeroidc_network_id_from_state(state);
 				
 				const uint64_t id = Utils::hexStrToU64(nwid);
+				
+				zeroidc::free_cstr(nwid);
+				zeroidc::free_cstr(state);
+
 				Mutex::Lock l(_nets_m);
 				if (_nets.find(id) != _nets.end()) {
 					NetworkState& ns = _nets[id];
-					const char* code = zeroidc::zeroidc_get_url_param_value("code", path.c_str());
-					ns.doTokenExchange(code);
+					char* code = zeroidc::zeroidc_get_url_param_value("code", path.c_str());
+					char *ret = ns.doTokenExchange(code);
 					scode = 200;
 					sprintf(resBuf, ssoResponseTemplate, "Authentication Successful. You may now access the network.");
 					responseBody = std::string(resBuf);
 
+					zeroidc::free_cstr(code);
+					zeroidc::free_cstr(ret);
+					
 					responseContentType = "text/html";
 					return scode;
 				} else {
@@ -2300,17 +2297,13 @@ public:
 						fprintf(stderr,"ERROR: unable to remove ip address %s" ZT_EOL_S, ip->toString(ipbuf));
 				}
 			}
-#ifdef __SYNOLOGY__
-			if (!n.tap->addIpSyn(newManagedIps))
-				fprintf(stderr,"ERROR: unable to add ip addresses to ifcfg" ZT_EOL_S);
-#else
+
 			for(std::vector<InetAddress>::iterator ip(newManagedIps.begin());ip!=newManagedIps.end();++ip) {
 				if (std::find(n.managedIps().begin(),n.managedIps().end(),*ip) == n.managedIps().end()) {
 					if (!n.tap()->addIp(*ip))
 						fprintf(stderr,"ERROR: unable to add ip address %s" ZT_EOL_S, ip->toString(ipbuf));
 				}
 			}
-#endif
 
 #ifdef __APPLE__
 			if (!MacDNSHelper::addIps(n.config().nwid, n.config().mac, n.tap()->deviceName().c_str(), newManagedIps))

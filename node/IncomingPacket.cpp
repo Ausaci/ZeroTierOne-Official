@@ -47,14 +47,13 @@ bool IncomingPacket::tryDecode(const RuntimeEnvironment *RR,void *tPtr,int32_t f
 	try {
 		// Check for trusted paths or unencrypted HELLOs (HELLO is the only packet sent in the clear)
 		const unsigned int c = cipher();
-		bool trusted = false;
 		if (c == ZT_PROTO_CIPHER_SUITE__NO_CRYPTO_TRUSTED_PATH) {
 			// If this is marked as a packet via a trusted path, check source address and path ID.
 			// Obviously if no trusted paths are configured this always returns false and such
 			// packets are dropped on the floor.
 			const uint64_t tpid = trustedPathId();
 			if (RR->topology->shouldInboundPathBeTrusted(_path->address(),tpid)) {
-				trusted = true;
+				_authenticated = true;
 			} else {
 				RR->t->incomingPacketMessageAuthenticationFailure(tPtr,_path,packetId(),sourceAddress,hops(),"path not trusted");
 				return true;
@@ -66,7 +65,7 @@ bool IncomingPacket::tryDecode(const RuntimeEnvironment *RR,void *tPtr,int32_t f
 
 		const SharedPtr<Peer> peer(RR->topology->getPeer(tPtr,sourceAddress));
 		if (peer) {
-			if (!trusted) {
+			if (!_authenticated) {
 				if (!dearmor(peer->key(), peer->aesKeys())) {
 					RR->t->incomingPacketMessageAuthenticationFailure(tPtr,_path,packetId(),sourceAddress,hops(),"invalid MAC");
 					peer->recordIncomingInvalidPacket(_path);
@@ -79,6 +78,7 @@ bool IncomingPacket::tryDecode(const RuntimeEnvironment *RR,void *tPtr,int32_t f
 				return true;
 			}
 
+			_authenticated = true;
 			const Packet::Verb v = verb();
 
 			bool r = true;
@@ -169,7 +169,7 @@ bool IncomingPacket::_doERROR(const RuntimeEnvironment *RR,void *tPtr,const Shar
 			const SharedPtr<Network> network(RR->node->network(networkId));
 			const int64_t now = RR->node->now();
 			if ((network)&&(network->config().com))
-				network->pushCredentialsNow(tPtr,peer->address(),now);
+				network->peerRequestedCredentials(tPtr,peer->address(),now);
 		}	break;
 
 		case Packet::ERROR_NETWORK_ACCESS_DENIED_: {
@@ -860,7 +860,7 @@ bool IncomingPacket::_doEXT_FRAME(const RuntimeEnvironment *RR,void *tPtr,const 
 bool IncomingPacket::_doECHO(const RuntimeEnvironment *RR,void *tPtr,const SharedPtr<Peer> &peer)
 {
 	uint64_t now = RR->node->now();
-	if (!peer->rateGateEchoRequest(now)) {
+	if (!_path->rateGateEchoRequest(now)) {
 		return true;
 	}
 
@@ -1057,10 +1057,8 @@ bool IncomingPacket::_doNETWORK_CONFIG(const RuntimeEnvironment *RR,void *tPtr,c
 {
 	const SharedPtr<Network> network(RR->node->network(at<uint64_t>(ZT_PACKET_IDX_PAYLOAD)));
 	if (network) {
-		//fprintf(stderr, "IncomingPacket::_doNETWORK_CONFIG %.16llx\n", network->id());
 		const uint64_t configUpdateId = network->handleConfigChunk(tPtr,packetId(),source(),*this,ZT_PACKET_IDX_PAYLOAD);
 		if (configUpdateId) {
-			//fprintf(stderr, "Have config update ID: %llu\n", configUpdateId);
 			Packet outp(peer->address(), RR->identity.address(), Packet::VERB_OK);
 			outp.append((uint8_t)Packet::VERB_ECHO);
 			outp.append((uint64_t)packetId());
@@ -1069,9 +1067,7 @@ bool IncomingPacket::_doNETWORK_CONFIG(const RuntimeEnvironment *RR,void *tPtr,c
 			const int64_t now = RR->node->now();
 			outp.armor(peer->key(),true,peer->aesKeysIfSupported());
 			peer->recordOutgoingPacket(_path,outp.packetId(),outp.payloadLength(),outp.verb(),ZT_QOS_NO_FLOW,now);
-			if (!_path->send(RR,tPtr,outp.data(),outp.size(),RR->node->now())) {
-				//fprintf(stderr, "Error sending VERB_OK after NETWORK_CONFIG packet for %.16llx\n", network->id());
-			}
+			_path->send(RR,tPtr,outp.data(),outp.size(),RR->node->now());
 		}
 	}
 
@@ -1098,16 +1094,7 @@ bool IncomingPacket::_doMULTICAST_GATHER(const RuntimeEnvironment *RR,void *tPtr
 		} catch ( ... ) {} // discard invalid COMs
 	}
 
-	bool trustEstablished = false;
-	if (network) {
-		if (network->gate(tPtr,peer)) {
-			trustEstablished = true;
-		} else {
-			_sendErrorNeedCredentials(RR,tPtr,peer,nwid);
-			return false;
-		}
-	}
-
+	const bool trustEstablished = (network) ? network->gate(tPtr,peer) : false;
 	const int64_t now = RR->node->now();
 	if ((gatherLimit > 0)&&((trustEstablished)||(RR->topology->amUpstream())||(RR->node->localControllerHasAuthorized(now,nwid,peer->address())))) {
 		Packet outp(peer->address(),RR->identity.address(),Packet::VERB_OK);
@@ -1224,9 +1211,6 @@ bool IncomingPacket::_doMULTICAST_FRAME(const RuntimeEnvironment *RR,void *tPtr,
 		}
 
 		peer->received(tPtr,_path,hops(),packetId(),payloadLength(),Packet::VERB_MULTICAST_FRAME,0,Packet::VERB_NOP,true,nwid,ZT_QOS_NO_FLOW);
-	} else {
-		_sendErrorNeedCredentials(RR,tPtr,peer,nwid);
-		return false;
 	}
 
 	return true;

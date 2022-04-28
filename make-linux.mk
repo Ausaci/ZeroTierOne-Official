@@ -252,6 +252,10 @@ endif
 ifeq ($(CC_MACH),riscv64)
 	ZT_ARCHITECTURE=0
 endif
+ifeq ($(CC_MACH),loongarch64)
+	ZT_ARCHITECTURE=17
+	override DEFS+=-DZT_NO_TYPE_PUNNING
+endif
 
 # Fail if system architecture could not be determined
 ifeq ($(ZT_ARCHITECTURE),999)
@@ -312,8 +316,8 @@ ifeq ($(ZT_ARCHITECTURE),3)
 		override CXXFLAGS+=-march=armv5t -mfloat-abi=soft -msoft-float -mno-unaligned-access -marm
 		ZT_USE_ARM32_NEON_ASM_CRYPTO=0
 	else
-		override CFLAGS+=-mfloat-abi=hard -march=armv6kz -marm -mfpu=vfp -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
-		override CXXFLAGS+=-mfloat-abi=hard -march=armv6kz -marm -mfpu=vfp -fexceptions -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
+		override CFLAGS+=-mfloat-abi=hard -march=armv6zk -marm -mfpu=vfp -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
+		override CXXFLAGS+=-mfloat-abi=hard -march=armv6zk -marm -mfpu=vfp -fexceptions -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
 		ZT_USE_ARM32_NEON_ASM_CRYPTO=0
 	endif
 endif
@@ -485,5 +489,11 @@ snap-upload-stable: FORCE
 	for SNAPFILE in ./*.snap; do\
 		snapcraft upload --release=stable $${SNAPFILE};\
 	done
+
+synology-pkg: FORCE
+	cd synology ; ./build.sh build
+
+synology-docker: FORCE
+	cd synology/dsm7-docker/; ./build.sh build
 
 FORCE:
