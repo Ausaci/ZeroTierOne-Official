@@ -27,35 +27,16 @@
 
 package com.zerotier.sdk;
 
+import androidx.annotation.CheckResult;
+
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.io.IOException;
 
 /**
  * A ZeroTier One node
  */
 public class Node {
 	static {
-        try {
-    		System.loadLibrary("ZeroTierOneJNI");
-        } catch (UnsatisfiedLinkError e) {
-            try { 
-                if(System.getProperty("os.name").startsWith("Windows")) {
-                    System.out.println("Arch: " + System.getProperty("sun.arch.data.model"));
-                    if(System.getProperty("sun.arch.data.model").equals("64")) {
-                        NativeUtils.loadLibraryFromJar("/lib/ZeroTierOneJNI_win64.dll");
-                    } else {
-                        NativeUtils.loadLibraryFromJar("/lib/ZeroTierOneJNI_win32.dll");
-                    }
-                } else if(System.getProperty("os.name").startsWith("Mac")) {
-                    NativeUtils.loadLibraryFromJar("/lib/libZeroTierOneJNI.jnilib");
-                } else {
-                    // TODO: Linux
-                }
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
-        }
+        System.loadLibrary("ZeroTierOneJNI");
 	}
 
     private static final String TAG = "NODE";
@@ -143,6 +124,7 @@ public class Node {
      * @param nextBackgroundTaskDeadline Value/result: set to deadline for next call to processBackgroundTasks()
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
     public ResultCode processVirtualNetworkFrame(
         long now,
         long nwid,
@@ -167,6 +149,7 @@ public class Node {
      * @param nextBackgroundTaskDeadline Value/result: set to deadline for next call to processBackgroundTasks()
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
     public ResultCode processWirePacket(
         long now,
         long localSocket,
@@ -185,6 +168,7 @@ public class Node {
      * @param nextBackgroundTaskDeadline Value/result: set to deadline for next call to processBackgroundTasks()
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
     public ResultCode processBackgroundTasks(long now, long[] nextBackgroundTaskDeadline) {
         return processBackgroundTasks(nodeId, now, nextBackgroundTaskDeadline);
     }
@@ -201,6 +185,7 @@ public class Node {
      * @param nwid 64-bit ZeroTier network ID
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
     public ResultCode join(long nwid) {
         return join(nodeId, nwid);
     }
@@ -215,6 +200,7 @@ public class Node {
      * @param nwid 64-bit network ID
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
     public ResultCode leave(long nwid) {
         return leave(nodeId, nwid);
     }
@@ -238,6 +224,7 @@ public class Node {
      * @param multicastGroup Ethernet multicast or broadcast MAC (least significant 48 bits)
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
     public ResultCode multicastSubscribe(
 		long nwid,
 		long multicastGroup) {
@@ -268,6 +255,7 @@ public class Node {
      * @param multicastAdi Multicast ADI (least significant 32 bits only, default: 0)
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
     public ResultCode multicastSubscribe(
         long nwid,
         long multicastGroup,
@@ -288,6 +276,7 @@ public class Node {
      * @param multicastGroup Ethernet multicast or broadcast MAC (least significant 48 bits)
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
 	public ResultCode multicastUnsubscribe(
 		long nwid,
 		long multicastGroup) {
@@ -311,6 +300,7 @@ public class Node {
      * @param multicastAdi Multicast ADI (least significant 32 bits only, default: 0)
      * @return OK (0) or error code if a fatal error condition has occurred
      */
+    @CheckResult
     public ResultCode multicastUnsubscribe(
         long nwid,
         long multicastGroup,
@@ -329,6 +319,7 @@ public class Node {
      * @param moonSeed If non-zero, the ZeroTier address of any member of the moon to query for moon definition
      * @return Error if moon was invalid or failed to be added
      */
+    @CheckResult
     public ResultCode orbit(
             long moonWorldId,
             long moonSeed) {
@@ -341,6 +332,7 @@ public class Node {
      * @param moonWorldId World ID of moon to remove
      * @return Error if anything bad happened
      */
+    @CheckResult
     public ResultCode deorbit(
             long moonWorldId) {
         return deorbit(nodeId, moonWorldId);
@@ -404,6 +396,7 @@ public class Node {
     //
     // function declarations for JNI
     //
+    @CheckResult
     private native ResultCode node_init(
             long nodeId,
             DataStoreGetListener dataStoreGetListener,
@@ -418,6 +411,7 @@ public class Node {
 
     private native void node_delete(long nodeId);
 
+    @CheckResult
     private native ResultCode processVirtualNetworkFrame(
         long nodeId,
         long now,
@@ -429,6 +423,7 @@ public class Node {
         byte[] frameData,
         long[] nextBackgroundTaskDeadline);
 
+    @CheckResult
     private native ResultCode processWirePacket(
         long nodeId,
         long now,
@@ -437,32 +432,39 @@ public class Node {
         byte[] packetData,
         long[] nextBackgroundTaskDeadline);
 
+    @CheckResult
     private native ResultCode processBackgroundTasks(
         long nodeId,
         long now,
         long[] nextBackgroundTaskDeadline);
 
+    @CheckResult
     private native ResultCode join(long nodeId, long nwid);
 
+    @CheckResult
     private native ResultCode leave(long nodeId, long nwid);
 
+    @CheckResult
     private native ResultCode multicastSubscribe(
         long nodeId,
         long nwid,
         long multicastGroup,
         long multicastAdi);
 
+    @CheckResult
     private native ResultCode multicastUnsubscribe(
         long nodeId,
         long nwid,
         long multicastGroup,
         long multicastAdi);
 
+    @CheckResult
     private native ResultCode orbit(
             long nodeId,
             long moonWorldId,
             long moonSeed);
 
+    @CheckResult
     private native ResultCode deorbit(
             long nodeId,
             long moonWorldId);

@@ -88,6 +88,22 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_multicastUnsubscribe
   (JNIEnv *, jobject, jlong, jlong, jlong, jlong);
 
 /*
+ * Class:   com_zerotier_sdk_Node
+ * Method:  orbit
+ * Signature: (JJJ)Lcom/zerotier/sdk/ResultCode;
+ */
+JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_orbit
+    (JNIEnv *env, jobject obj, jlong nodeId, jlong moonWorldId, jlong moonSeed);
+
+/*
+ * Class:   com_zerotier_sdk_Node
+ * Method:  deorbit
+ * Signature: (JJ)L/com/zerotier/sdk/ResultCode;
+ */
+JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_deorbit
+    (JNIEnv *env, jobject obj, jlong nodeId, jlong moonWorldId);
+
+/*
  * Class:     com_zerotier_sdk_Node
  * Method:    address
  * Signature: (J)J

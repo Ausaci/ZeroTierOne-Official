@@ -56,6 +56,8 @@ public class NodeStatus {
 
 	/**
 	 * 40-bit ZeroTier address of this node
+     *
+     * @return XXX
 	 */
     public long getAddress() {
         return address;
@@ -65,6 +67,8 @@ public class NodeStatus {
 	 * Public identity in string-serialized form (safe to send to others)
 	 *
 	 * <p>This identity will remain valid as long as the node exists.</p>
+     *
+     * @return XXX
 	 */
     public String getPublicIdentity() {
         return publicIdentity;
@@ -74,6 +78,8 @@ public class NodeStatus {
 	 * Full identity including secret key in string-serialized form
 	 *
 	 * <p>This identity will remain valid as long as the node exists.</p>
+     *
+     * @return XXX
 	 */
     public String getSecretIdentity() {
         return secretIdentity;
@@ -81,6 +87,8 @@ public class NodeStatus {
 
 	/**
 	 * True if some kind of connectivity appears available
+     *
+     * @return XXX
 	 */
     public boolean isOnline() {
         return online;

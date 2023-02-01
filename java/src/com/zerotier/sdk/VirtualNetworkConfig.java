@@ -288,6 +288,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * 64-bit ZeroTier network ID
+     *
+     * @return XXX
      */
     public long getNwid() {
         return nwid;
@@ -295,6 +297,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * Ethernet MAC (48 bits) that should be assigned to port
+     *
+     * @return XXX
      */
     public long getMac() {
         return mac;
@@ -302,6 +306,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * Network name (from network configuration master)
+     *
+     * @return XXX
      */
     public String getName() {
         return name;
@@ -309,6 +315,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * Network configuration request status
+     *
+     * @return XXX
      */
     public VirtualNetworkStatus getStatus() {
         return status;
@@ -316,6 +324,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * Network type
+     *
+     * @return XXX
      */
     public VirtualNetworkType getType() {
         return type;
@@ -323,6 +333,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * Maximum interface MTU
+     *
+     * @return XXX
      */
     public int getMtu() {
         return mtu;
@@ -334,6 +346,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
      * <p>This is a suggestion. The underlying implementation is free to ignore it
      * for security or other reasons. This is simply a netconf parameter that
      * means 'DHCP is available on this network.'</p>
+     *
+     * @return XXX
      */
     public boolean isDhcp() {
         return dhcp;
@@ -344,6 +358,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
      *
      * <p>This is informational. If this is false, bridged packets will simply
      * be dropped and bridging won't work.</p>
+     *
+     * @return XXX
      */
     public boolean isBridge() {
         return bridge;
@@ -351,6 +367,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * If true, this network supports and allows broadcast (ff:ff:ff:ff:ff:ff) traffic
+     *
+     * @return XXX
      */
     public boolean isBroadcastEnabled() {
         return broadcastEnabled;
@@ -358,6 +376,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * If the network is in PORT_ERROR state, this is the error most recently returned by the port config callback
+     *
+     * @return XXX
      */
     public int getPortError() {
         return portError;
@@ -367,13 +387,15 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
      * Network config revision as reported by netconf master
      *
      * <p>If this is zero, it means we're still waiting for our netconf.</p>
+     *
+     * @return XXX
      */
     public long getNetconfRevision() {
         return netconfRevision;
     }
 
     /**
-     * ZeroTier-assigned addresses (in {@link java.net.InetSocketAddress} objects)
+     * ZeroTier-assigned addresses (in {@link InetSocketAddress} objects)
      *
      * For IP, the port number of the sockaddr_XX structure contains the number
      * of bits in the address netmask. Only the IP address and port are used.
@@ -381,15 +403,17 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
      *
      * This is only used for ZeroTier-managed address assignments sent by the
      * virtual network's configuration master.
+     *
+     * @return assigned addresses
      */
     public InetSocketAddress[] getAssignedAddresses() {
         return assignedAddresses;
     }
 
     /**
-     * ZeroTier-assigned routes (in {@link com.zerotier.sdk.VirtualNetworkRoute} objects)
+     * ZeroTier-assigned routes (in {@link VirtualNetworkRoute} objects)
      *
-     * @return
+     * @return routes
      */
     public VirtualNetworkRoute[] getRoutes() {
         return routes;
@@ -397,6 +421,8 @@ public class VirtualNetworkConfig implements Comparable<VirtualNetworkConfig> {
 
     /**
      * Network specific DNS configuration
+     *
+     * @return DNS
      */
     public VirtualNetworkDNS getDns() {
         return dns;

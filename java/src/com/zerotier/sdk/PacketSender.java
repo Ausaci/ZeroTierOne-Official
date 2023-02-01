@@ -27,8 +27,9 @@
 
 package com.zerotier.sdk;
 
-import java.net.InetSocketAddress;
+import androidx.annotation.CheckResult;
 
+import java.net.InetSocketAddress;
 
 public interface PacketSender {
 
@@ -45,6 +46,7 @@ public interface PacketSender {
      * @param ttl TTL is ignored
      * @return 0 on success, any error code on failure.
      */
+    @CheckResult
     int onSendPacketRequested(
             long localSocket,
             InetSocketAddress remoteAddr,

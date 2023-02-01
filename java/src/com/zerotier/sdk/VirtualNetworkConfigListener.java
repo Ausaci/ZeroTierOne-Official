@@ -27,6 +27,7 @@
 
 package com.zerotier.sdk;
 
+import androidx.annotation.CheckResult;
 
 public interface VirtualNetworkConfigListener {
 
@@ -53,6 +54,7 @@ public interface VirtualNetworkConfigListener {
      * @param config {@link VirtualNetworkConfig} object with the new configuration
      * @return 0 on success
      */
+    @CheckResult
     int onNetworkConfigurationUpdated(
             long nwid,
             VirtualNetworkConfigOperation op,

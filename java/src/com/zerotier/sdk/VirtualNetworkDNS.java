@@ -67,10 +67,18 @@ public class VirtualNetworkDNS implements Comparable<VirtualNetworkDNS> {
         return result;
     }
 
+    /**
+     *
+     * @return XXX
+     */
     public String getDomain() {
         return domain;
     }
 
+    /**
+     *
+     * @return XXX
+     */
     public ArrayList<InetSocketAddress> getServers() {
         return servers;
     }

@@ -134,35 +134,41 @@ namespace {
 
         if (env->ExceptionCheck()) {
             LOGE("Unhandled pending exception");
-            return -1;
+            return -100;
         }
 
         if (ref->configListener == NULL) {
             LOGE("configListener is NULL");
-            return -1;
+            return -101;
         }
 
         jobject operationObject = createVirtualNetworkConfigOperation(env, operation);
         if(env->ExceptionCheck() || operationObject == NULL)
         {
-            return -3;
+            return -102;
         }
 
         if (config == NULL) {
             LOGE("Config is NULL");
-            return -1;
+            return -103;
         }
 
         jobject networkConfigObject = newNetworkConfig(env, *config);
         if(env->ExceptionCheck() || networkConfigObject == NULL)
         {
-            return -4;
+            return -104;
         }
 
-        return env->CallIntMethod(
+        jint ret = env->CallIntMethod(
             ref->configListener,
             VirtualNetworkConfigListener_onNetworkConfigurationUpdated_method,
             (jlong)nwid, operationObject, networkConfigObject);
+        if (env->ExceptionCheck()) {
+            LOGE("Exception calling onNetworkConfigurationUpdated");
+            return -105;
+        }
+
+        return ret;
     }
 
     void VirtualNetworkFrameFunctionCallback(ZT_Node *node,
@@ -207,6 +213,10 @@ namespace {
         }
 
         env->CallVoidMethod(ref->frameListener, VirtualNetworkFrameListener_onVirtualNetworkFrame_method, (jlong)nwid, (jlong)sourceMac, (jlong)destMac, (jlong)etherType, (jlong)vlanid, dataArray);
+        if (env->ExceptionCheck()) {
+            LOGE("Exception calling onVirtualNetworkFrame");
+            return;
+        }
     }
 
 
@@ -448,12 +458,12 @@ namespace {
                 res = snprintf(p, sizeof(p), "peers.d/%.10" PRIx64, id[0]);
                 break;
             case ZT_STATE_OBJECT_NULL:
-                return -1;
+                return -100;
         }
 
         if (!(0 <= res && res < sizeof(p))) {
             LOGE("snprintf error: %d", res);
-            return -1;
+            return -101;
         }
 
         JniRef *ref = (JniRef*)userData;
@@ -463,25 +473,25 @@ namespace {
 
         if (env->ExceptionCheck()) {
             LOGE("Unhandled pending exception");
-            return -1;
+            return -102;
         }
 
         if (ref->dataStoreGetListener == NULL) {
             LOGE("dataStoreGetListener is NULL");
-            return -2;
+            return -103;
         }
 
         jstring nameStr = env->NewStringUTF(p);
         if(env->ExceptionCheck() || nameStr == NULL)
         {
             LOGE("Error creating name string object");
-            return -2; // out of memory
+            return -104; // out of memory
         }
 
         jbyteArray bufferObj = newByteArray(env, bufferLength);
         if(env->ExceptionCheck() || bufferObj == NULL)
         {
-            return -2;
+            return -105;
         }
 
         LOGV("Calling onDataStoreGet(%s, %p)", p, buffer);
@@ -493,7 +503,7 @@ namespace {
                 bufferObj);
         if (env->ExceptionCheck()) {
             LOGE("Exception calling onDataStoreGet");
-            return -2;
+            return -106;
         }
 
         LOGV("onDataStoreGet returned %d", retval);
@@ -502,7 +512,7 @@ namespace {
         {
             if (retval > bufferLength) {
                 LOGE("retval > bufferLength. retval: %d, bufferLength: %u", retval, bufferLength);
-                return -1;
+                return -107;
             }
 
             void *data = env->GetPrimitiveArrayCritical(bufferObj, NULL);
@@ -537,12 +547,12 @@ namespace {
 
         if (env->ExceptionCheck()) {
             LOGE("Unhandled pending exception");
-            return -1;
+            return -100;
         }
 
         if (ref->packetSender == NULL) {
             LOGE("packetSender is NULL");
-            return -1;
+            return -101;
         }
 
         //
@@ -550,19 +560,19 @@ namespace {
         //
         jobject remoteAddressObj = newInetSocketAddress(env, *remoteAddress);
         if (env->ExceptionCheck()) {
-            return -1;
+            return -102;
         }
         const unsigned char *bytes = static_cast<const unsigned char *>(buffer);
         jbyteArray bufferObj = newByteArray(env, bytes, bufferSize);
         if (env->ExceptionCheck() || bufferObj == NULL)
         {
-            return -1;
+            return -103;
         }
         
         int retval = env->CallIntMethod(ref->packetSender, PacketSender_onSendPacketRequested_method, localSocket, remoteAddressObj, bufferObj, 0);
         if (env->ExceptionCheck()) {
             LOGE("Exception calling onSendPacketRequested");
-            return -1;
+            return -104;
         }
 
         LOGV("JNI Packet Sender returned: %d", retval);
@@ -605,7 +615,13 @@ namespace {
             return true;
         }
 
-        return env->CallBooleanMethod(ref->pathChecker, PathChecker_onPathCheck_method, address, localSocket, remoteAddressObj);
+        jboolean ret = env->CallBooleanMethod(ref->pathChecker, PathChecker_onPathCheck_method, address, localSocket, remoteAddressObj);
+        if (env->ExceptionCheck()) {
+            LOGE("Exception calling onPathCheck");
+            return true;
+        }
+
+        return ret;
     }
 
     /**

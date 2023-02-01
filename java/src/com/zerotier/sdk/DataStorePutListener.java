@@ -27,6 +27,8 @@
 
 package com.zerotier.sdk;
 
+import androidx.annotation.CheckResult;
+
 public interface DataStorePutListener {
 
     /**
@@ -44,6 +46,7 @@ public interface DataStorePutListener {
      * @param secure set to user read/write only.
      * @return 0 on success.
      */
+    @CheckResult
     int onDataStorePut(
         String name,
         byte[] buffer,
@@ -55,6 +58,7 @@ public interface DataStorePutListener {
      * @param name Object name
      * @return 0 on success.
      */
+    @CheckResult
     int onDelete(
         String name);
 }

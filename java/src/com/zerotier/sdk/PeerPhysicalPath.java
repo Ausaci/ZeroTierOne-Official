@@ -64,6 +64,8 @@ public class PeerPhysicalPath {
 
     /**
      * Address of endpoint
+     *
+     * @return XXX
      */
     public InetSocketAddress getAddress() {
         return address;
@@ -71,6 +73,8 @@ public class PeerPhysicalPath {
 
     /**
      * Time of last send in milliseconds or 0 for never
+     *
+     * @return XXX
      */
     public long getLastSend() {
         return lastSend;
@@ -78,6 +82,8 @@ public class PeerPhysicalPath {
 
     /**
      * Time of last receive in milliseconds or 0 for never
+     *
+     * @return XXX
      */
     public long getLastReceive() {
         return lastReceive;
@@ -85,6 +91,8 @@ public class PeerPhysicalPath {
 
     /**
      * Is path preferred?
+     *
+     * @return XXX
      */
     public boolean isPreferred() {
         return preferred;

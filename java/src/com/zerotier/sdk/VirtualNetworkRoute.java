@@ -145,18 +145,34 @@ public class VirtualNetworkRoute implements Comparable<VirtualNetworkRoute>
         return result;
     }
 
+    /**
+     *
+     * @return xxx
+     */
     public InetSocketAddress getTarget() {
         return target;
     }
 
+    /**
+     *
+     * @return xxx
+     */
     public InetSocketAddress getVia() {
         return via;
     }
 
+    /**
+     *
+     * @return xxx
+     */
     public int getFlags() {
         return flags;
     }
 
+    /**
+     *
+     * @return xxx
+     */
     public int getMetric() {
         return metric;
     }

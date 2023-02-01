@@ -67,6 +67,8 @@ public class Peer {
 
     /**
      * ZeroTier address (40 bits)
+     *
+     * @return XXX
      */
     public long getAddress() {
         return address;
@@ -74,6 +76,8 @@ public class Peer {
 
     /**
      * Remote major version or -1 if not known
+     *
+     * @return XXX
      */
     public int getVersionMajor() {
         return versionMajor;
@@ -81,6 +85,8 @@ public class Peer {
 
     /**
      * Remote minor version or -1 if not known
+     *
+     * @return XXX
      */
     public int getVersionMinor() {
         return versionMinor;
@@ -88,6 +94,8 @@ public class Peer {
 
     /**
      * Remote revision or -1 if not known
+     *
+     * @return XXX
      */
     public int getVersionRev() {
         return versionRev;
@@ -95,6 +103,8 @@ public class Peer {
 
     /**
      * Last measured latency in milliseconds or zero if unknown
+     *
+     * @return XXX
      */
     public int getLatency() {
         return latency;
@@ -102,6 +112,8 @@ public class Peer {
 
     /**
      * What trust hierarchy role does this device have?
+     *
+     * @return XXX
      */
     public PeerRole getRole() {
         return role;
@@ -109,6 +121,8 @@ public class Peer {
 
     /**
      * Known network paths to peer
+     *
+     * @return XXX
      */
     public PeerPhysicalPath[] getPaths() {
         return paths;
