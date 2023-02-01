@@ -124,10 +124,14 @@ namespace {
             return -3;
         }
 
+        if (config == NULL) {
+            LOGE("Config is NULL");
+            return -1;
+        }
+
         jobject networkConfigObject = newNetworkConfig(env, *config);
-        if(networkConfigObject == NULL)
+        if(env->ExceptionCheck() || networkConfigObject == NULL)
         {
-            LOGE("Error creating VirtualNetworkConfig object");
             return -4;
         }
 
