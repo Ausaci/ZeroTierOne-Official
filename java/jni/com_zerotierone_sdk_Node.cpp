@@ -54,6 +54,7 @@ namespace {
             , configListener(NULL)
             , pathChecker(NULL)
             , callbacks(NULL)
+            , inited()
         {
             callbacks = (ZT_Node_Callbacks*)malloc(sizeof(ZT_Node_Callbacks));
             memset(callbacks, 0, sizeof(ZT_Node_Callbacks));
@@ -91,6 +92,10 @@ namespace {
         jobject pathChecker;
 
         ZT_Node_Callbacks *callbacks;
+
+        bool inited;
+
+        bool finishInitializing();
     };
 
 
@@ -539,19 +544,81 @@ namespace {
     }
 
     typedef std::map<int64_t, JniRef*> NodeMap;
-    static NodeMap nodeMap;
+    NodeMap nodeMap;
     ZeroTier::Mutex nodeMapMutex;
+
+    bool isInited(int64_t nodeId) {
+
+        ZeroTier::Mutex::Lock lock(nodeMapMutex);
+        NodeMap::iterator found = nodeMap.find(nodeId);
+
+        if (found == nodeMap.end()) {
+
+            //
+            // not in map yet, or has been removed from map
+            //
+            return false;
+        }
+        
+        JniRef *ref = found->second;
+
+        assert(ref);
+
+        return ref->inited;
+    }
+
+    bool JniRef::finishInitializing() {
+
+        ZeroTier::Mutex::Lock lock(nodeMapMutex);
+        NodeMap::iterator found = nodeMap.find(id);
+
+        if (found != nodeMap.end()) {
+            //
+            // already in map
+            //
+            LOGE("Cannot finish initializing; node is already in map");
+            return false;
+        }
+
+        nodeMap.insert(std::make_pair(id, this));
+
+        assert(!inited);
+        inited = true;
+
+        return true;
+    }
 
     ZT_Node* findNode(int64_t nodeId)
     {
         ZeroTier::Mutex::Lock lock(nodeMapMutex);
         NodeMap::iterator found = nodeMap.find(nodeId);
-        if(found != nodeMap.end())
-        {
-            JniRef *ref = found->second;
-            return ref->node;
+
+        assert(found != nodeMap.end());
+
+        JniRef *ref = found->second;
+
+        assert(ref);
+
+        return ref->node;
+    }
+
+    JniRef *removeRef(int64_t nodeId) {
+
+        ZeroTier::Mutex::Lock lock(nodeMapMutex);
+
+        NodeMap::iterator found = nodeMap.find(nodeId);
+
+        if (found == nodeMap.end()) {
+            return nullptr;
         }
-        return NULL;
+
+        JniRef *ref = found->second;
+
+        assert(ref);
+
+        nodeMap.erase(nodeId);
+
+        return ref;
     }
 }
 
@@ -574,10 +641,13 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved)
 /*
  * Class:     com_zerotier_sdk_Node
  * Method:    node_init
- * Signature: (J)Lcom/zerotier/sdk/ResultCode;
+ * Signature: (JLcom/zerotier/sdk/DataStoreGetListener;Lcom/zerotier/sdk/DataStorePutListener;Lcom/zerotier/sdk/PacketSender;Lcom/zerotier/sdk/EventListener;Lcom/zerotier/sdk/VirtualNetworkFrameListener;Lcom/zerotier/sdk/VirtualNetworkConfigListener;Lcom/zerotier/sdk/PathChecker;)Lcom/zerotier/sdk/ResultCode;
  */
 JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_node_1init(
-    JNIEnv *env, jobject obj, jlong now)
+    JNIEnv *env, jobject obj, jlong now, jobject dataStoreGetListener,
+    jobject dataStorePutListener, jobject packetSender, jobject eventListener,
+    jobject frameListener, jobject configListener,
+    jobject pathChecker)
 {
     LOGV("Creating ZT_Node struct");
     jobject resultObject = ResultCode_RESULT_OK_enum;
@@ -587,49 +657,42 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_node_1init(
     ref->id = (int64_t)now;
     env->GetJavaVM(&ref->jvm);
 
-    jobject dataStoreGetListener = env->GetObjectField(obj, Node_getListener_field);
     if(dataStoreGetListener == NULL)
     {
         return NULL;
     }
     ref->dataStoreGetListener = env->NewGlobalRef(dataStoreGetListener);
 
-    jobject dataStorePutListener = env->GetObjectField(obj, Node_putListener_field);
     if(dataStorePutListener == NULL)
     {
         return NULL;
     }
     ref->dataStorePutListener = env->NewGlobalRef(dataStorePutListener);
 
-    jobject packetSender = env->GetObjectField(obj, Node_sender_field);
     if(packetSender == NULL)
     {
         return NULL;
     }
     ref->packetSender = env->NewGlobalRef(packetSender);
 
-    jobject frameListener = env->GetObjectField(obj, Node_frameListener_field);
     if(frameListener == NULL)
     {
         return NULL;
     }
     ref->frameListener = env->NewGlobalRef(frameListener);
 
-    jobject configListener = env->GetObjectField(obj, Node_configListener_field);
     if(configListener == NULL)
     {
         return NULL;
     }
     ref->configListener = env->NewGlobalRef(configListener);
 
-    jobject eventListener = env->GetObjectField(obj, Node_eventListener_field);
     if(eventListener == NULL)
     {
         return NULL;
     }
     ref->eventListener = env->NewGlobalRef(eventListener);
 
-    jobject pathChecker = env->GetObjectField(obj, Node_pathChecker_field);
     if(pathChecker != NULL)
     {
         ref->pathChecker = env->NewGlobalRef(pathChecker);
@@ -669,11 +732,31 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_node_1init(
         return resultObject;
     }
 
-    ZeroTier::Mutex::Lock lock(nodeMapMutex);
+    //
+    // node is now updated
+    //
     ref->node = node;
-    nodeMap.insert(std::make_pair(ref->id, ref));
+
+    if (!ref->finishInitializing()) {
+        jobject resultObject = ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
+        if (env->ExceptionCheck() || resultObject == NULL) {
+            return NULL;
+        }
+
+        return resultObject;
+    }
 
     return resultObject;
+}
+
+/*
+ * Class:     com_zerotier_sdk_Node
+ * Method:    node_isInited
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_zerotier_sdk_Node_node_1isInited
+        (JNIEnv *env, jobject obj, jlong nodeId) {
+    return isInited(nodeId);
 }
 
 /*
@@ -687,26 +770,15 @@ JNIEXPORT void JNICALL Java_com_zerotier_sdk_Node_node_1delete(
     LOGV("Destroying ZT_Node struct");
     int64_t nodeId = (int64_t)id;
 
-    NodeMap::iterator found;
-    {
-        ZeroTier::Mutex::Lock lock(nodeMapMutex);
-        found = nodeMap.find(nodeId);
+    JniRef *ref = removeRef(nodeId);
+
+    if (!ref) {
+        return;
     }
 
-    if(found != nodeMap.end())
-    {
-        JniRef *ref = found->second;
-        nodeMap.erase(found);
+    ZT_Node_delete(ref->node);
 
-        ZT_Node_delete(ref->node);
-
-        delete ref;
-        ref = NULL;
-    }
-    else
-    {
-        LOGE("Attempted to delete a node that doesn't exist!");
-    }
+    delete ref;
 }
 
 /*
@@ -729,11 +801,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_processVirtualNetworkFrame(
     int64_t nodeId = (int64_t) id;
 
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
 
     unsigned int nbtd_len = env->GetArrayLength(out_nextBackgroundTaskDeadline);
     if(nbtd_len < 1)
@@ -795,12 +862,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_processWirePacket(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        LOGE("Couldn't find a valid node!");
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
 
     unsigned int nbtd_len = (unsigned int)env->GetArrayLength(out_nextBackgroundTaskDeadline);
     if(nbtd_len < 1)
@@ -918,11 +979,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_processBackgroundTasks(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
 
     unsigned int nbtd_len = env->GetArrayLength(out_nextBackgroundTaskDeadline);
     if(nbtd_len < 1)
@@ -952,12 +1008,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_join(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
-
     uint64_t nwid = (uint64_t)in_nwid;
 
     ZT_ResultCode rc = ZT_Node_join(node, nwid, NULL, NULL);
@@ -975,11 +1025,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_leave(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
 
     uint64_t nwid = (uint64_t)in_nwid;
 
@@ -1002,11 +1047,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_multicastSubscribe(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
 
     uint64_t nwid = (uint64_t)in_nwid;
     uint64_t multicastGroup = (uint64_t)in_multicastGroup;
@@ -1032,11 +1072,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_multicastUnsubscribe(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
 
     uint64_t nwid = (uint64_t)in_nwid;
     uint64_t multicastGroup = (uint64_t)in_multicastGroup;
@@ -1061,10 +1096,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_orbit(
 {
     int64_t nodeId = (int64_t)id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
 
     uint64_t moonWorldId = (uint64_t)in_moonWorldId;
     uint64_t moonSeed = (uint64_t)in_moonSeed;
@@ -1085,10 +1116,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_deorbit(
 {
     int64_t nodeId = (int64_t)id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        return ResultCode_RESULT_FATAL_ERROR_INTERNAL_enum;
-    }
 
     uint64_t moonWorldId = (uint64_t)in_moonWorldId;
 
@@ -1106,11 +1133,6 @@ JNIEXPORT jlong JNICALL Java_com_zerotier_sdk_Node_address(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return 0;
-    }
 
     uint64_t address = ZT_Node_address(node);
     return (jlong)address;
@@ -1143,11 +1165,6 @@ JNIEXPORT jobject JNICALL Java_com_zerotier_sdk_Node_networkConfig(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return 0;
-    }
 
     ZT_VirtualNetworkConfig *vnetConfig = ZT_Node_networkConfig(node, nwid);
 
@@ -1185,11 +1202,6 @@ JNIEXPORT jobjectArray JNICALL Java_com_zerotier_sdk_Node_peers(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return 0;
-    }
 
     ZT_PeerList *peerList = ZT_Node_peers(node);
 
@@ -1239,11 +1251,6 @@ JNIEXPORT jobjectArray JNICALL Java_com_zerotier_sdk_Node_networks(
 {
     int64_t nodeId = (int64_t) id;
     ZT_Node *node = findNode(nodeId);
-    if(node == NULL)
-    {
-        // cannot find valid node.  We should  never get here.
-        return 0;
-    }
 
     ZT_VirtualNetworkList *networkList = ZT_Node_networks(node);
     if(networkList == NULL)
