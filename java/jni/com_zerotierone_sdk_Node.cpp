@@ -428,7 +428,7 @@ namespace {
             return -1;
         }
         
-        int retval = env->CallIntMethod(ref->packetSender, PacketSender_onSendPacketRequested_method, localSocket, remoteAddressObj, bufferObj);
+        int retval = env->CallIntMethod(ref->packetSender, PacketSender_onSendPacketRequested_method, localSocket, remoteAddressObj, bufferObj, 0);
 
         LOGV("JNI Packet Sender returned: %d", retval);
         return retval;
